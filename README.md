@@ -68,7 +68,9 @@ La base de datos SQLite se almacena en un **volumen nombrado de Docker** llamado
 - ✅ Los datos persisten entre reinicios del contenedor
 - ✅ Los datos sobreviven a actualizaciones de la aplicación
 - ✅ Puedes eliminar el contenedor sin perder datos
-- ✅ Los datos están aislados del sistema de archivos local
+- ✅ No hay archivos de base de datos en el sistema de archivos local
+
+**No se requiere** un directorio `data` local - todo se maneja automáticamente con Docker.
 
 ## Estructura del Proyecto
 
@@ -79,12 +81,12 @@ tablero/
 │   ├── index.html     # Interfaz de usuario
 │   ├── app.js         # Lógica del frontend
 │   └── styles.css     # Estilos CSS
-├── data/
-│   └── tablero.db     # Base de datos SQLite (en volumen Docker)
 ├── Dockerfile         # Configuración de Docker
 ├── docker-compose.yml # Orquestación con Docker Compose
 └── package.json       # Dependencias de Node.js
 ```
+
+**Nota**: La base de datos SQLite se almacena en un volumen nombrado de Docker (`tablero_data`) y no requiere un directorio `data` local.
 
 ## API Endpoints
 
