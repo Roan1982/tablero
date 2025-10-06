@@ -139,6 +139,10 @@ async function getBoardById(boardId) {
   const board = await dbGet('SELECT * FROM boards WHERE id = ?', [boardId]);
   if (!board) return null;
   board.members = await dbAll('SELECT userId FROM board_members WHERE boardId = ?', [boardId]).then(rows => rows.map(r => r.userId));
+  // Include owner in members array for consistency
+  if (!board.members.includes(board.ownerId)) {
+    board.members.unshift(board.ownerId);
+  }
   board.lists = await dbAll('SELECT * FROM lists WHERE boardId = ? ORDER BY position', [boardId]);
   for (const list of board.lists) {
     list.cards = await dbAll('SELECT * FROM cards WHERE listId = ? ORDER BY position', [list.id]);
@@ -512,7 +516,7 @@ app.post('/api/boards/:boardId/lists/:listId/cards', authMiddleware, async (req,
     const list = board.lists.find(l => l.id === req.params.listId);
     if (!list) return res.status(404).json({ error: 'List not found' });
     const position = list.cards.length;
-    const card = { id: uuidv4(), title, description, position, createdAt: new Date().toISOString(), creatorId: req.userId, status: 'todo' };
+    const card = { id: uuidv4(), title, description, position, createdAt: new Date().toISOString(), creatorId: req.userId, status: 'todo', assignees: [] };
     await createCard({ ...card, listId: req.params.listId });
     res.status(201).json(card);
   } catch (err) {

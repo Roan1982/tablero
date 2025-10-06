@@ -156,6 +156,9 @@ function setupBoardsView() {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target).entries());
     const board = await API.createBoard(state.token, { name: data.name });
+    // Initialize lists and members arrays for new boards
+    board.lists = [];
+    board.members = [];
     state.boards.push(board);
     renderBoards();
     e.target.reset();
@@ -188,9 +191,16 @@ function setupBoardView() {
     const title = new FormData(e.target).get('title');
     if (!title) return;
     const list = await API.addList(state.token, state.currentBoard.id, title);
+    // Initialize cards array for new lists
+    list.cards = [];
     state.currentBoard.lists.push(list);
     renderBoard();
     e.target.reset();
+    // Keep focus on the add list input after rendering
+    setTimeout(() => {
+      const input = document.querySelector('#add-list-form input');
+      if (input) input.focus();
+    }, 0);
   });
 }
 
@@ -344,6 +354,14 @@ function renderBoard() {
       list.cards.push(newCard);
       renderBoard();
       e.target.reset();
+      // Keep focus on the add card input after rendering
+      setTimeout(() => {
+        const listEl = document.querySelector(`.cards[data-list-id="${list.id}"]`);
+        if (listEl) {
+          const input = listEl.closest('.list').querySelector('.add-card-form input');
+          if (input) input.focus();
+        }
+      }, 0);
     });
 
     listsEl.appendChild(node);
