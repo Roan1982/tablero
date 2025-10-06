@@ -252,7 +252,39 @@ function renderBoard() {
       cardEl.dataset.cardId = card.id;
       cardEl.classList.add(`status-${card.status || 'todo'}`);
       titleEl.textContent = card.title;
+
+      // Auto-save title on change
+      let titleSaveTimeout;
+      titleEl.addEventListener('input', () => {
+        clearTimeout(titleSaveTimeout);
+        titleSaveTimeout = setTimeout(async () => {
+          try {
+            await API.updateCard(state.token, state.currentBoard.id, list.id, card.id, {
+              title: titleEl.textContent,
+            });
+            card.title = titleEl.textContent;
+          } catch (err) {
+            console.error('Error auto-saving title:', err);
+          }
+        }, 1000); // Save after 1 second of no typing
+      });
       descEl.value = card.description || '';
+
+      // Auto-save description on change
+      let saveTimeout;
+      descEl.addEventListener('input', () => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+          try {
+            await API.updateCard(state.token, state.currentBoard.id, list.id, card.id, {
+              description: descEl.value,
+            });
+            card.description = descEl.value;
+          } catch (err) {
+            console.error('Error auto-saving description:', err);
+          }
+        }, 1000); // Save after 1 second of no typing
+      });
 
       const creator = state.members.find(m => m.id === card.creatorId);
       if (creator) {
@@ -401,7 +433,9 @@ function enableDrop(container) {
     const fromListEl = document.querySelector('.cards .card.dragging')?.closest('.cards');
     const toListEl = container;
 
-    const toIndex = Array.from(container.children).indexOf(document.querySelector('.card.dragging'));
+    // Calculate the correct drop position based on mouse position
+    const afterElement = getDragAfterElement(container, e.clientY);
+    const toIndex = afterElement ? Array.from(container.children).indexOf(afterElement) : container.children.length;
 
     const fromListId = fromListEl?.dataset.listId;
     const toListId = toListEl.dataset.listId;
