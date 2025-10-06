@@ -239,12 +239,29 @@ async function moveCard(cardId, toListId, toIndex) {
   const card = await dbGet('SELECT listId, position FROM cards WHERE id = ?', [cardId]);
   if (!card) return;
 
-  // Remove from old list
-  await dbRun('UPDATE cards SET position = position - 1 WHERE listId = ? AND position > ?', [card.listId, card.position]);
+  const fromListId = card.listId;
+  const fromPosition = card.position;
 
-  // Insert into new list
-  await dbRun('UPDATE cards SET position = position + 1 WHERE listId = ? AND position >= ?', [toListId, toIndex]);
-  await dbRun('UPDATE cards SET listId = ?, position = ? WHERE id = ?', [toListId, toIndex, cardId]);
+  if (fromListId === toListId) {
+    // Moving within the same list
+    if (fromPosition < toIndex) {
+      // Moving down: shift items up between old and new position
+      await dbRun('UPDATE cards SET position = position - 1 WHERE listId = ? AND position > ? AND position <= ?', [toListId, fromPosition, toIndex]);
+    } else if (fromPosition > toIndex) {
+      // Moving up: shift items down between new and old position
+      await dbRun('UPDATE cards SET position = position + 1 WHERE listId = ? AND position >= ? AND position < ?', [toListId, toIndex, fromPosition]);
+    }
+    // Update the card's position
+    await dbRun('UPDATE cards SET position = ? WHERE id = ?', [toIndex, cardId]);
+  } else {
+    // Moving between different lists
+    // Remove from old list
+    await dbRun('UPDATE cards SET position = position - 1 WHERE listId = ? AND position > ?', [fromListId, fromPosition]);
+
+    // Insert into new list
+    await dbRun('UPDATE cards SET position = position + 1 WHERE listId = ? AND position >= ?', [toListId, toIndex]);
+    await dbRun('UPDATE cards SET listId = ?, position = ? WHERE id = ?', [toListId, toIndex, cardId]);
+  }
 }
 
 function createToken(user) {

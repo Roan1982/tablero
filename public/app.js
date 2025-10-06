@@ -236,6 +236,7 @@ function renderBoard() {
     });
 
     cardsContainer.dataset.listId = list.id;
+    listEl.dataset.listId = list.id;
     enableDrop(cardsContainer);
 
     list.cards.sort((a,b) => a.position - b.position).forEach(card => {
@@ -404,6 +405,7 @@ function enableDrag(el) {
   el.addEventListener('dragstart', (e) => {
     el.classList.add('dragging');
     e.dataTransfer.setData('text/plain', el.dataset.cardId);
+    e.dataTransfer.setData('fromListId', el.closest('.list').dataset.listId);
   });
   el.addEventListener('dragend', () => {
     el.classList.remove('dragging');
@@ -430,15 +432,14 @@ function enableDrop(container) {
     e.preventDefault();
     container.classList.remove('drag-over');
     const cardId = e.dataTransfer.getData('text/plain');
-    const fromListEl = document.querySelector('.cards .card.dragging')?.closest('.cards');
-    const toListEl = container;
+    const fromListId = e.dataTransfer.getData('fromListId');
+    const toListEl = container.closest('.list');
 
     // Calculate the correct drop position based on mouse position
     const afterElement = getDragAfterElement(container, e.clientY);
     const toIndex = afterElement ? Array.from(container.children).indexOf(afterElement) : container.children.length;
 
-    const fromListId = fromListEl?.dataset.listId;
-    const toListId = toListEl.dataset.listId;
+    const toListId = toListEl?.dataset.listId;
 
     document.querySelector('.card.dragging')?.classList.remove('dragging');
 
