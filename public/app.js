@@ -215,9 +215,31 @@ function updateAvatarDisplay() {
   const avatarPlaceholder = document.getElementById('avatar-placeholder');
   
   if (state.user && state.user.hasAvatar) {
-    avatarImg.src = API.getAvatarUrl(state.user.id);
-    avatarImg.style.display = 'block';
-    avatarPlaceholder.style.display = 'none';
+    // Fetch avatar with authentication
+    fetch('/api/me/avatar', {
+      headers: {
+        'Authorization': `Bearer ${state.token}`
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        return response.blob();
+      } else {
+        throw new Error('Failed to load avatar');
+      }
+    })
+    .then(blob => {
+      const objectUrl = URL.createObjectURL(blob);
+      avatarImg.src = objectUrl;
+      avatarImg.style.display = 'block';
+      avatarPlaceholder.style.display = 'none';
+    })
+    .catch(err => {
+      console.error('Error loading avatar:', err);
+      avatarImg.style.display = 'none';
+      avatarPlaceholder.style.display = 'flex';
+      avatarPlaceholder.textContent = state.user ? state.user.name.charAt(0).toUpperCase() : '?';
+    });
   } else {
     avatarImg.style.display = 'none';
     avatarPlaceholder.style.display = 'flex';
@@ -510,8 +532,35 @@ function renderTopActions() {
     
     if (state.user.hasAvatar) {
       const avatarImg = document.createElement('img');
-      avatarImg.src = API.getAvatarUrl(state.user.id);
       avatarImg.alt = 'Avatar';
+      avatarImg.style.width = '32px';
+      avatarImg.style.height = '32px';
+      avatarImg.style.borderRadius = '50%';
+      
+      // Fetch avatar with authentication
+      fetch('/api/me/avatar', {
+        headers: {
+          'Authorization': `Bearer ${state.token}`
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          return response.blob();
+        } else {
+          throw new Error('Failed to load avatar');
+        }
+      })
+      .then(blob => {
+        const objectUrl = URL.createObjectURL(blob);
+        avatarImg.src = objectUrl;
+      })
+      .catch(err => {
+        console.error('Error loading avatar:', err);
+        // Fallback to placeholder
+        avatarContainer.textContent = state.user.name.charAt(0).toUpperCase();
+        avatarImg.remove();
+      });
+      
       avatarContainer.appendChild(avatarImg);
     } else {
       avatarContainer.textContent = state.user.name.charAt(0).toUpperCase();
