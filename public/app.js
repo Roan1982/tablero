@@ -1,5 +1,309 @@
 const API = {
-  // ... existing code ...
+  async login(data) {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Login failed');
+    }
+    return await response.json();
+  },
+
+  async register(data) {
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Registration failed');
+    }
+    return await response.json();
+  },
+
+  async logout(token) {
+    const response = await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Logout failed');
+    }
+    return await response.json();
+  },
+
+  async me(token) {
+    const response = await fetch('/api/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to get user info');
+    }
+    return await response.json();
+  },
+
+  async boards(token) {
+    const response = await fetch('/api/boards', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to get boards');
+    }
+    return await response.json();
+  },
+
+  async getBoard(token, boardId) {
+    const response = await fetch(`/api/boards/${boardId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to get board');
+    }
+    return await response.json();
+  },
+
+  async getBoardMembers(token, boardId) {
+    const response = await fetch(`/api/boards/${boardId}/members`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to get board members');
+    }
+    return await response.json();
+  },
+
+  async createBoard(token, data) {
+    const response = await fetch('/api/boards', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create board');
+    }
+    return await response.json();
+  },
+
+  async invite(token, boardId, email) {
+    const response = await fetch(`/api/boards/${boardId}/members`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ email })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to invite user');
+    }
+    return await response.json();
+  },
+
+  async addList(token, boardId, title) {
+    const response = await fetch(`/api/boards/${boardId}/lists`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ title })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create list');
+    }
+    return await response.json();
+  },
+
+  async updateList(token, boardId, listId, data) {
+    const response = await fetch(`/api/boards/${boardId}/lists/${listId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update list');
+    }
+    return await response.json();
+  },
+
+  async deleteList(token, boardId, listId) {
+    const response = await fetch(`/api/boards/${boardId}/lists/${listId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete list');
+    }
+    return await response.json();
+  },
+
+  async addCard(token, boardId, listId, data) {
+    const response = await fetch(`/api/boards/${boardId}/lists/${listId}/cards`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create card');
+    }
+    return await response.json();
+  },
+
+  async updateCard(token, boardId, listId, cardId, data) {
+    const response = await fetch(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update card');
+    }
+    return await response.json();
+  },
+
+  async deleteCard(token, boardId, listId, cardId) {
+    const response = await fetch(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete card');
+    }
+    return await response.json();
+  },
+
+  async assignCard(token, boardId, listId, cardId, userId) {
+    const response = await fetch(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}/assignees`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to assign card');
+    }
+    return await response.json();
+  },
+
+  async unassignCard(token, boardId, listId, cardId, userId) {
+    const response = await fetch(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}/assignees/${userId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to unassign card');
+    }
+    return await response.json();
+  },
+
+  async moveCard(token, boardId, data) {
+    const response = await fetch(`/api/boards/${boardId}/cards/move`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to move card');
+    }
+    return await response.json();
+  },
+
+  async updateProfile(token, data) {
+    const response = await fetch('/api/me', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update profile');
+    }
+    return await response.json();
+  },
+
+  async changePassword(token, data) {
+    const response = await fetch('/api/me/password', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to change password');
+    }
+    return await response.json();
+  },
+
+  async uploadAvatar(token, avatarData) {
+    const response = await fetch('/api/me/avatar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ avatar: avatarData })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload avatar');
+    }
+    return await response.json();
+  },
+
+  async deleteAvatar(token) {
+    const response = await fetch('/api/me/avatar', {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete avatar');
+    }
+    return await response.json();
+  }
 };
 
 // WebSocket connection

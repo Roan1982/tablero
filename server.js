@@ -19,6 +19,7 @@ const io = new Server(server, {
 });
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret_jwt_key_change_me';
 const tokenBlacklist = new Set();
+const PORT = process.env.PORT || 3000;
 
 // Database setup
 const db = new sqlite3.Database('./data/tablero.db', (err) => {
