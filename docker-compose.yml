@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./server.js:/app/server.js
+      - ./public:/app/public
+      - tablero_data:/app/data
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  tablero_data:
+    driver: local
