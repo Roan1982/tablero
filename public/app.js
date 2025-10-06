@@ -32,6 +32,9 @@ const API = {
   updateCard(token, boardId, listId, cardId, data) { return this.request(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}`, { method: 'PUT', token, body: data }); },
   deleteCard(token, boardId, listId, cardId) { return this.request(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}`, { method: 'DELETE', token }); },
   moveCard(token, boardId, payload) { return this.request(`/api/boards/${boardId}/cards/move`, { method: 'PATCH', token, body: payload }); },
+  assignCard(token, boardId, listId, cardId, userId) { return this.request(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}/assignees`, { method: 'POST', token, body: { userId } }); },
+  unassignCard(token, boardId, listId, cardId, userId) { return this.request(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}/assignees/${userId}`, { method: 'DELETE', token }); },
+  getBoardMembers(token, boardId) { return this.request(`/api/boards/${boardId}/members`, { token }); },
 };
 
 const state = {
@@ -39,6 +42,7 @@ const state = {
   user: JSON.parse(localStorage.getItem('user') || 'null'),
   boards: [],
   currentBoard: null,
+  members: [],
 };
 
 function setAuth(token, user) {
@@ -139,6 +143,7 @@ function renderBoards() {
     item.onclick = async () => {
       const full = await API.getBoard(state.token, b.id);
       state.currentBoard = full;
+      state.members = await API.getBoardMembers(state.token, b.id);
       renderBoard();
       showView('board-view');
     };
@@ -226,6 +231,8 @@ function renderBoard() {
     list.cards.sort((a,b) => a.position - b.position).forEach(card => {
       const cnode = cardTpl.content.cloneNode(true);
       const cardEl = cnode.querySelector('.card');
+      const creatorEl = cnode.querySelector('.card-creator');
+      const assigneesEl = cnode.querySelector('.card-assignees');
       const titleEl = cnode.querySelector('.card-title');
       const descEl = cnode.querySelector('.card-desc');
       const saveBtn = cnode.querySelector('.save-card');
@@ -234,6 +241,22 @@ function renderBoard() {
       cardEl.dataset.cardId = card.id;
       titleEl.textContent = card.title;
       descEl.value = card.description || '';
+
+      const creator = state.members.find(m => m.id === card.creatorId);
+      if (creator) {
+        creatorEl.textContent = creator.name.split(' ').map(n => n[0]).join('').toUpperCase();
+      }
+
+      assigneesEl.innerHTML = '';
+      card.assignees.forEach(aid => {
+        const assignee = state.members.find(m => m.id === aid);
+        if (assignee) {
+          const span = document.createElement('span');
+          span.className = 'assignee-initial';
+          span.textContent = assignee.name.split(' ').map(n => n[0]).join('').toUpperCase();
+          assigneesEl.appendChild(span);
+        }
+      });
 
       enableDrag(cardEl);
 

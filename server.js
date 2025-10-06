@@ -361,7 +361,7 @@ app.post('/api/boards/:boardId/lists/:listId/cards', authMiddleware, async (req,
     const list = board.lists.find(l => l.id === req.params.listId);
     if (!list) return res.status(404).json({ error: 'List not found' });
     const position = list.cards.length;
-    const card = { id: uuidv4(), title, description, position, createdAt: new Date().toISOString() };
+    const card = { id: uuidv4(), title, description, position, createdAt: new Date().toISOString(), creatorId: req.userId, assignees: [] };
     list.cards.push(card);
     await saveBoards(boards);
     res.status(201).json(card);
@@ -406,6 +406,66 @@ app.delete('/api/boards/:boardId/lists/:listId/cards/:cardId', authMiddleware, a
     list.cards.forEach((c, i) => (c.position = i));
     await saveBoards(boards);
     res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Assign user to card
+app.post('/api/boards/:boardId/lists/:listId/cards/:cardId/assignees', authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    const boards = await loadBoards();
+    const board = boards.find(b => b.id === req.params.boardId);
+    if (!board) return res.status(404).json({ error: 'Board not found' });
+    if (!isBoardMember(board, req.userId)) return res.status(403).json({ error: 'Forbidden' });
+    const list = board.lists.find(l => l.id === req.params.listId);
+    if (!list) return res.status(404).json({ error: 'List not found' });
+    const card = list.cards.find(c => c.id === req.params.cardId);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    if (!board.members.includes(userId) && board.ownerId !== userId) return res.status(400).json({ error: 'User not a member' });
+    if (!card.assignees.includes(userId)) card.assignees.push(userId);
+    await saveBoards(boards);
+    res.json(card);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Unassign user from card
+app.delete('/api/boards/:boardId/lists/:listId/cards/:cardId/assignees/:userId', authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const boards = await loadBoards();
+    const board = boards.find(b => b.id === req.params.boardId);
+    if (!board) return res.status(404).json({ error: 'Board not found' });
+    if (!isBoardMember(board, req.userId)) return res.status(403).json({ error: 'Forbidden' });
+    const list = board.lists.find(l => l.id === req.params.listId);
+    if (!list) return res.status(404).json({ error: 'List not found' });
+    const card = list.cards.find(c => c.id === req.params.cardId);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    card.assignees = card.assignees.filter(id => id !== userId);
+    await saveBoards(boards);
+    res.json(card);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get board members
+app.get('/api/boards/:boardId/members', authMiddleware, async (req, res) => {
+  try {
+    const boards = await loadBoards();
+    const users = await loadUsers();
+    const board = boards.find(b => b.id === req.params.boardId);
+    if (!board) return res.status(404).json({ error: 'Board not found' });
+    if (!isBoardMember(board, req.userId)) return res.status(403).json({ error: 'Forbidden' });
+    const members = [board.ownerId, ...board.members].map(id => users.find(u => u.id === id)).filter(Boolean);
+    res.json(members);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
