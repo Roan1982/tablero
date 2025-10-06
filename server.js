@@ -6,9 +6,17 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
 const { v4: uuidv4 } = require('uuid');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret_jwt_key_change_me';
 const tokenBlacklist = new Set();
 
@@ -93,6 +101,111 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Serve frontend
 const publicDir = path.join(__dirname, 'public');
 app.use(express.static(publicDir));
+
+// WebSocket connections and real-time updates
+const boardRooms = new Map(); // boardId -> Set of socket IDs
+const editingUsers = new Map(); // cardId|listId -> { userId, userName, type: 'card'|'list' }
+
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Join board room
+  socket.on('join-board', (boardId) => {
+    if (boardId) {
+      socket.join(`board-${boardId}`);
+      if (!boardRooms.has(boardId)) {
+        boardRooms.set(boardId, new Set());
+      }
+      boardRooms.get(boardId).add(socket.id);
+      console.log(`User ${socket.id} joined board ${boardId}`);
+    }
+  });
+
+  // Leave board room
+  socket.on('leave-board', (boardId) => {
+    if (boardId) {
+      socket.leave(`board-${boardId}`);
+      const room = boardRooms.get(boardId);
+      if (room) {
+        room.delete(socket.id);
+        if (room.size === 0) {
+          boardRooms.delete(boardId);
+        }
+      }
+      console.log(`User ${socket.id} left board ${boardId}`);
+    }
+  });
+
+  // Start editing
+  socket.on('start-editing', (data) => {
+    const { boardId, itemId, itemType, userName } = data;
+    if (boardId && itemId && itemType && userName) {
+      const key = `${itemType}-${itemId}`;
+      editingUsers.set(key, { userId: socket.id, userName, type: itemType });
+      
+      // Notify other users in the board
+      socket.to(`board-${boardId}`).emit('user-editing', {
+        itemId,
+        itemType,
+        userName,
+        isEditing: true
+      });
+    }
+  });
+
+  // Stop editing
+  socket.on('stop-editing', (data) => {
+    const { boardId, itemId, itemType } = data;
+    if (boardId && itemId && itemType) {
+      const key = `${itemType}-${itemId}`;
+      editingUsers.delete(key);
+      
+      // Notify other users in the board
+      socket.to(`board-${boardId}`).emit('user-editing', {
+        itemId,
+        itemType,
+        isEditing: false
+      });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+    
+    // Remove user from all rooms and clean up editing status
+    for (const [boardId, sockets] of boardRooms.entries()) {
+      if (sockets.has(socket.id)) {
+        sockets.delete(socket.id);
+        if (sockets.size === 0) {
+          boardRooms.delete(boardId);
+        }
+      }
+    }
+    
+    // Clean up editing status for this user
+    for (const [key, user] of editingUsers.entries()) {
+      if (user.userId === socket.id) {
+        const [itemType, itemId] = key.split('-');
+        // Find which board this item belongs to and notify others
+        for (const [boardId, sockets] of boardRooms.entries()) {
+          if (sockets.has(socket.id)) {
+            io.to(`board-${boardId}`).emit('user-editing', {
+              itemId,
+              itemType,
+              isEditing: false
+            });
+          }
+        }
+        editingUsers.delete(key);
+      }
+    }
+  });
+});
+
+// Helper function to emit board updates
+function emitBoardUpdate(boardId, event, data) {
+  io.to(`board-${boardId}`).emit(event, data);
+}
 
 // DB helper functions
 function dbGet(sql, params = []) {
@@ -605,6 +718,12 @@ app.post('/api/boards/:boardId/lists', authMiddleware, async (req, res) => {
     const position = board.lists.length;
     const list = { id: uuidv4(), title, position };
     await createList({ ...list, boardId: req.params.boardId });
+    
+    // Emit real-time update
+    emitBoardUpdate(req.params.boardId, 'list-created', {
+      list: list
+    });
+    
     res.status(201).json(list);
   } catch (err) {
     console.error(err);
@@ -624,6 +743,13 @@ app.put('/api/boards/:boardId/lists/:listId', authMiddleware, async (req, res) =
       await updateList(req.params.listId, title);
       list.title = title;
     }
+    
+    // Emit real-time update
+    emitBoardUpdate(req.params.boardId, 'list-updated', {
+      listId: req.params.listId,
+      list: list
+    });
+    
     res.json(list);
   } catch (err) {
     console.error(err);
@@ -639,6 +765,12 @@ app.delete('/api/boards/:boardId/lists/:listId', authMiddleware, async (req, res
     const list = board.lists.find(l => l.id === req.params.listId);
     if (!list) return res.status(404).json({ error: 'List not found' });
     await deleteList(req.params.listId);
+    
+    // Emit real-time update
+    emitBoardUpdate(req.params.boardId, 'list-deleted', {
+      listId: req.params.listId
+    });
+    
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -658,6 +790,12 @@ app.patch('/api/boards/:boardId/lists/reorder', authMiddleware, async (req, res)
     const newLists = listOrder.map((id, idx) => ({ ...listsById[id], position: idx })).filter(Boolean);
     if (newLists.length !== board.lists.length) return res.status(400).json({ error: 'listOrder mismatch' });
     await reorderLists(req.params.boardId, listOrder);
+    
+    // Emit real-time update
+    emitBoardUpdate(req.params.boardId, 'lists-reordered', {
+      listOrder: newLists
+    });
+    
     res.json(newLists);
   } catch (err) {
     console.error(err);
@@ -678,6 +816,14 @@ app.post('/api/boards/:boardId/lists/:listId/cards', authMiddleware, async (req,
     const position = list.cards.length;
     const card = { id: uuidv4(), title, description, position, createdAt: new Date().toISOString(), creatorId: req.userId, status: 'todo', assignees: [] };
     await createCard({ ...card, listId: req.params.listId });
+    list.cards.push(card);
+    
+    // Emit real-time update
+    emitBoardUpdate(req.params.boardId, 'card-created', {
+      listId: req.params.listId,
+      card: card
+    });
+    
     res.status(201).json(card);
   } catch (err) {
     console.error(err);
@@ -701,6 +847,13 @@ app.put('/api/boards/:boardId/lists/:listId/cards/:cardId', authMiddleware, asyn
     if (['todo', 'in-progress', 'done'].includes(status)) updates.status = status;
     await updateCard(req.params.cardId, updates);
     Object.assign(card, updates);
+    
+    // Emit real-time update
+    emitBoardUpdate(req.params.boardId, 'card-updated', {
+      listId: req.params.listId,
+      card: card
+    });
+    
     res.json(card);
   } catch (err) {
     console.error(err);
@@ -718,6 +871,13 @@ app.delete('/api/boards/:boardId/lists/:listId/cards/:cardId', authMiddleware, a
     const card = list.cards.find(c => c.id === req.params.cardId);
     if (!card) return res.status(404).json({ error: 'Card not found' });
     await deleteCard(req.params.cardId);
+    
+    // Emit real-time update
+    emitBoardUpdate(req.params.boardId, 'card-deleted', {
+      listId: req.params.listId,
+      cardId: req.params.cardId
+    });
+    
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -740,6 +900,15 @@ app.post('/api/boards/:boardId/lists/:listId/cards/:cardId/assignees', authMiddl
     if (!board.members.includes(userId) && board.ownerId !== userId) return res.status(400).json({ error: 'User not a member' });
     await assignCard(req.params.cardId, userId);
     if (!card.assignees.includes(userId)) card.assignees.push(userId);
+    
+    // Emit real-time update
+    emitBoardUpdate(req.params.boardId, 'card-assignee-added', {
+      listId: req.params.listId,
+      cardId: req.params.cardId,
+      userId: userId,
+      card: card
+    });
+    
     res.json(card);
   } catch (err) {
     console.error(err);
@@ -760,6 +929,15 @@ app.delete('/api/boards/:boardId/lists/:listId/cards/:cardId/assignees/:userId',
     if (!card) return res.status(404).json({ error: 'Card not found' });
     await unassignCard(req.params.cardId, userId);
     card.assignees = card.assignees.filter(id => id !== userId);
+    
+    // Emit real-time update
+    emitBoardUpdate(req.params.boardId, 'card-assignee-removed', {
+      listId: req.params.listId,
+      cardId: req.params.cardId,
+      userId: userId,
+      card: card
+    });
+    
     res.json(card);
   } catch (err) {
     console.error(err);
@@ -799,6 +977,16 @@ app.patch('/api/boards/:boardId/cards/move', authMiddleware, async (req, res) =>
     if (!card) return res.status(404).json({ error: 'Card not found in source list' });
 
     await moveCard(cardId, toListId, toIndex);
+    
+    // Emit real-time update
+    emitBoardUpdate(req.params.boardId, 'card-moved', {
+      cardId,
+      fromListId,
+      toListId,
+      toIndex,
+      card
+    });
+    
     res.json({ success: true, card });
   } catch (err) {
     console.error(err);
@@ -811,6 +999,6 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Servidor escuchando en http://localhost:${PORT}`);
 });

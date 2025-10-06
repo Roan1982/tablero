@@ -775,3 +775,31 @@ textarea:focus {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 2px rgba(2, 106, 167, 0.1);
 }
+
+/* Real-time editing indicators */
+.editing-indicator {
+  position: absolute;
+  top: -25px;
+  left: 0;
+  background: var(--warning-color);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* For list headers */
+.list-header {
+  position: relative;
+}

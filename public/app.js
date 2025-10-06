@@ -1,46 +1,261 @@
 const API = {
-  async request(path, { method = 'GET', body, token } = {}) {
-    const res = await fetch(path, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Error' }));
-      throw new Error(err.error || 'Error del servidor');
-    }
-    return res.json();
-  },
-  register(data) { return this.request('/api/auth/register', { method: 'POST', body: data }); },
-  login(data) { return this.request('/api/auth/login', { method: 'POST', body: data }); },
-  logout(token) { return this.request('/api/auth/logout', { method: 'POST', token }); },
-  me(token) { return this.request('/api/me', { token }); },
-  updateProfile(token, data) { return this.request('/api/me', { method: 'PUT', token, body: data }); },
-  changePassword(token, data) { return this.request('/api/me/password', { method: 'PUT', token, body: data }); },
-  uploadAvatar(token, avatarData) { return this.request('/api/me/avatar', { method: 'POST', token, body: { avatar: avatarData } }); },
-  getAvatarUrl(userId) { return `/api/me/avatar`; }, // This will be called with auth header
-  deleteAvatar(token) { return this.request('/api/me/avatar', { method: 'DELETE', token }); },
-  boards(token) { return this.request('/api/boards', { token }); },
-  createBoard(token, data) { return this.request('/api/boards', { method: 'POST', token, body: data }); },
-  getBoard(token, id) { return this.request(`/api/boards/${id}`, { token }); },
-  updateBoard(token, id, data) { return this.request(`/api/boards/${id}`, { method: 'PUT', token, body: data }); },
-  deleteBoard(token, id) { return this.request(`/api/boards/${id}`, { method: 'DELETE', token }); },
-  invite(token, boardId, email) { return this.request(`/api/boards/${boardId}/members`, { method: 'POST', token, body: { email } }); },
-  addList(token, boardId, title) { return this.request(`/api/boards/${boardId}/lists`, { method: 'POST', token, body: { title } }); },
-  updateList(token, boardId, listId, data) { return this.request(`/api/boards/${boardId}/lists/${listId}`, { method: 'PUT', token, body: data }); },
-  deleteList(token, boardId, listId) { return this.request(`/api/boards/${boardId}/lists/${listId}`, { method: 'DELETE', token }); },
-  reorderLists(token, boardId, listOrder) { return this.request(`/api/boards/${boardId}/lists/reorder`, { method: 'PATCH', token, body: { listOrder } }); },
-  addCard(token, boardId, listId, data) { return this.request(`/api/boards/${boardId}/lists/${listId}/cards`, { method: 'POST', token, body: data }); },
-  updateCard(token, boardId, listId, cardId, data) { return this.request(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}`, { method: 'PUT', token, body: data }); },
-  deleteCard(token, boardId, listId, cardId) { return this.request(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}`, { method: 'DELETE', token }); },
-  moveCard(token, boardId, payload) { return this.request(`/api/boards/${boardId}/cards/move`, { method: 'PATCH', token, body: payload }); },
-  assignCard(token, boardId, listId, cardId, userId) { return this.request(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}/assignees`, { method: 'POST', token, body: { userId } }); },
-  unassignCard(token, boardId, listId, cardId, userId) { return this.request(`/api/boards/${boardId}/lists/${listId}/cards/${cardId}/assignees/${userId}`, { method: 'DELETE', token }); },
-  getBoardMembers(token, boardId) { return this.request(`/api/boards/${boardId}/members`, { token }); },
+  // ... existing code ...
 };
+
+// WebSocket connection
+let socket = null;
+
+// Real-time state
+const realTimeState = {
+  editingUsers: new Map(), // itemId -> { userName, type }
+  currentBoardId: null
+};
+
+// Initialize WebSocket connection
+function initWebSocket() {
+  socket = io();
+  
+  socket.on('connect', () => {
+    console.log('Connected to server');
+    if (realTimeState.currentBoardId) {
+      socket.emit('join-board', realTimeState.currentBoardId);
+    }
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('Disconnected from server');
+  });
+  
+  // Handle real-time updates
+  socket.on('card-created', (data) => {
+    handleCardCreated(data);
+  });
+  
+  socket.on('card-updated', (data) => {
+    handleCardUpdated(data);
+  });
+  
+  socket.on('card-deleted', (data) => {
+    handleCardDeleted(data);
+  });
+  
+  socket.on('card-moved', (data) => {
+    handleCardMoved(data);
+  });
+  
+  socket.on('card-assignee-added', (data) => {
+    handleCardAssigneeAdded(data);
+  });
+  
+  socket.on('card-assignee-removed', (data) => {
+    handleCardAssigneeRemoved(data);
+  });
+  
+  socket.on('list-created', (data) => {
+    handleListCreated(data);
+  });
+  
+  socket.on('list-updated', (data) => {
+    handleListUpdated(data);
+  });
+  
+  socket.on('list-deleted', (data) => {
+    handleListDeleted(data);
+  });
+  
+  socket.on('lists-reordered', (data) => {
+    handleListsReordered(data);
+  });
+  
+  socket.on('user-editing', (data) => {
+    handleUserEditing(data);
+  });
+}
+
+// Join/leave board rooms
+function joinBoard(boardId) {
+  if (socket && realTimeState.currentBoardId !== boardId) {
+    if (realTimeState.currentBoardId) {
+      socket.emit('leave-board', realTimeState.currentBoardId);
+    }
+    realTimeState.currentBoardId = boardId;
+    socket.emit('join-board', boardId);
+  }
+}
+
+function leaveBoard() {
+  if (socket && realTimeState.currentBoardId) {
+    socket.emit('leave-board', realTimeState.currentBoardId);
+    realTimeState.currentBoardId = null;
+    realTimeState.editingUsers.clear();
+  }
+}
+
+// Start/stop editing indicators
+function startEditing(itemId, itemType) {
+  if (socket && state.user && realTimeState.currentBoardId) {
+    socket.emit('start-editing', {
+      boardId: realTimeState.currentBoardId,
+      itemId,
+      itemType,
+      userName: state.user.name
+    });
+  }
+}
+
+function stopEditing(itemId, itemType) {
+  if (socket && realTimeState.currentBoardId) {
+    socket.emit('stop-editing', {
+      boardId: realTimeState.currentBoardId,
+      itemId,
+      itemType
+    });
+  }
+}
+
+// Real-time event handlers
+function handleCardCreated(data) {
+  const { listId, card } = data;
+  const list = state.currentBoard.lists.find(l => l.id === listId);
+  if (list && !list.cards.find(c => c.id === card.id)) {
+    list.cards.push(card);
+    renderBoard();
+  }
+}
+
+function handleCardUpdated(data) {
+  const { listId, card: updatedCard } = data;
+  const list = state.currentBoard.lists.find(l => l.id === listId);
+  if (list) {
+    const cardIndex = list.cards.findIndex(c => c.id === updatedCard.id);
+    if (cardIndex !== -1) {
+      list.cards[cardIndex] = { ...list.cards[cardIndex], ...updatedCard };
+      renderBoard();
+    }
+  }
+}
+
+function handleCardDeleted(data) {
+  const { listId, cardId } = data;
+  const list = state.currentBoard.lists.find(l => l.id === listId);
+  if (list) {
+    list.cards = list.cards.filter(c => c.id !== cardId);
+    renderBoard();
+  }
+}
+
+function handleCardMoved(data) {
+  const { cardId, fromListId, toListId, toIndex } = data;
+  
+  // Find the card in the from list
+  const fromList = state.currentBoard.lists.find(l => l.id === fromListId);
+  const toList = state.currentBoard.lists.find(l => l.id === toListId);
+  
+  if (fromList && toList) {
+    const cardIndex = fromList.cards.findIndex(c => c.id === cardId);
+    if (cardIndex !== -1) {
+      const [card] = fromList.cards.splice(cardIndex, 1);
+      
+      // Insert at the correct position in the to list
+      toList.cards.splice(toIndex, 0, card);
+      
+      renderBoard();
+    }
+  }
+}
+
+function handleCardAssigneeAdded(data) {
+  const { listId, cardId, userId, card: updatedCard } = data;
+  const list = state.currentBoard.lists.find(l => l.id === listId);
+  if (list) {
+    const card = list.cards.find(c => c.id === cardId);
+    if (card) {
+      card.assignees = updatedCard.assignees;
+      renderBoard();
+    }
+  }
+}
+
+function handleCardAssigneeRemoved(data) {
+  const { listId, cardId, userId, card: updatedCard } = data;
+  const list = state.currentBoard.lists.find(l => l.id === listId);
+  if (list) {
+    const card = list.cards.find(c => c.id === cardId);
+    if (card) {
+      card.assignees = updatedCard.assignees;
+      renderBoard();
+    }
+  }
+}
+
+function handleListCreated(data) {
+  const { list } = data;
+  if (!state.currentBoard.lists.find(l => l.id === list.id)) {
+    list.cards = [];
+    state.currentBoard.lists.push(list);
+    renderBoard();
+  }
+}
+
+function handleListUpdated(data) {
+  const { listId, list: updatedList } = data;
+  const list = state.currentBoard.lists.find(l => l.id === listId);
+  if (list) {
+    Object.assign(list, updatedList);
+    renderBoard();
+  }
+}
+
+function handleListDeleted(data) {
+  const { listId } = data;
+  state.currentBoard.lists = state.currentBoard.lists.filter(l => l.id !== listId);
+  renderBoard();
+}
+
+function handleListsReordered(data) {
+  const { listOrder } = data;
+  // Update the positions of lists
+  state.currentBoard.lists = listOrder;
+  renderBoard();
+}
+
+function handleUserEditing(data) {
+  const { itemId, itemType, userName, isEditing } = data;
+  const key = `${itemType}-${itemId}`;
+  
+  if (isEditing) {
+    realTimeState.editingUsers.set(key, { userName, type: itemType });
+  } else {
+    realTimeState.editingUsers.delete(key);
+  }
+  
+  // Update UI to show editing indicators
+  updateEditingIndicators();
+}
+
+function updateEditingIndicators() {
+  // Clear all existing indicators
+  document.querySelectorAll('.editing-indicator').forEach(el => el.remove());
+  
+  // Add new indicators
+  for (const [key, user] of realTimeState.editingUsers.entries()) {
+    const [itemType, itemId] = key.split('-');
+    let element;
+    
+    if (itemType === 'card') {
+      element = document.querySelector(`.card[data-card-id="${itemId}"]`);
+    } else if (itemType === 'list') {
+      element = document.querySelector(`.list[data-list-id="${itemId}"] .list-header`);
+    }
+    
+    if (element) {
+      const indicator = document.createElement('div');
+      indicator.className = 'editing-indicator';
+      indicator.textContent = `${user.userName} está editando...`;
+      element.appendChild(indicator);
+    }
+  }
+}
 
 const state = {
   token: localStorage.getItem('token') || null,
@@ -708,11 +923,12 @@ function renderBoard() {
   document.getElementById('board-title').textContent = state.currentBoard.name;
   const listsEl = document.getElementById('lists');
   listsEl.innerHTML = '';
+  
+  // Join the board room for real-time updates
+  joinBoard(state.currentBoard.id);
 
   const listTpl = document.getElementById('list-template');
-  const cardTpl = document.getElementById('card-template');
-
-  state.currentBoard.lists.sort((a,b) => a.position - b.position).forEach(list => {
+  const cardTpl = document.getElementById('card-template');  state.currentBoard.lists.sort((a,b) => a.position - b.position).forEach(list => {
     const node = listTpl.content.cloneNode(true);
     const listEl = node.querySelector('.list');
     const titleInput = node.querySelector('.list-title');
@@ -727,6 +943,16 @@ function renderBoard() {
       try {
         await API.updateList(state.token, state.currentBoard.id, list.id, { title: titleInput.value });
       } catch (err) { showToast('Error al actualizar el título de la lista: ' + err.message, 'error'); }
+    });
+    
+    // Start editing indicator for list title
+    titleInput.addEventListener('focus', () => {
+      startEditing(list.id, 'list');
+    });
+    
+    // Stop editing indicator for list title
+    titleInput.addEventListener('blur', () => {
+      stopEditing(list.id, 'list');
     });
 
     delBtn.addEventListener('click', async () => {
@@ -772,6 +998,16 @@ function renderBoard() {
           }
         }, 1000); // Save after 1 second of no typing
       });
+      
+      // Start editing indicator
+      titleEl.addEventListener('focus', () => {
+        startEditing(card.id, 'card');
+      });
+      
+      // Stop editing indicator
+      titleEl.addEventListener('blur', () => {
+        stopEditing(card.id, 'card');
+      });
       descEl.value = card.description || '';
 
       // Auto-save description on change
@@ -788,6 +1024,16 @@ function renderBoard() {
             console.error('Error auto-saving description:', err);
           }
         }, 1000); // Save after 1 second of no typing
+      });
+      
+      // Start editing indicator for description
+      descEl.addEventListener('focus', () => {
+        startEditing(card.id, 'card');
+      });
+      
+      // Stop editing indicator for description
+      descEl.addEventListener('blur', () => {
+        stopEditing(card.id, 'card');
       });
 
       const creator = state.members.find(m => m.id === card.creatorId);
@@ -987,6 +1233,9 @@ async function boot() {
 
   // Configurar panel de perfil
   setupProfilePanel();
+
+  // Initialize WebSocket connection
+  initWebSocket();
 
   renderTopActions();
   setupAuthForms();
