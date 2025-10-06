@@ -18,6 +18,11 @@ const API = {
   login(data) { return this.request('/api/auth/login', { method: 'POST', body: data }); },
   logout(token) { return this.request('/api/auth/logout', { method: 'POST', token }); },
   me(token) { return this.request('/api/me', { token }); },
+  updateProfile(token, data) { return this.request('/api/me', { method: 'PUT', token, body: data }); },
+  changePassword(token, data) { return this.request('/api/me/password', { method: 'PUT', token, body: data }); },
+  uploadAvatar(token, avatarData) { return this.request('/api/me/avatar', { method: 'POST', token, body: avatarData }); },
+  getAvatarUrl(userId) { return `/api/me/avatar`; }, // This will be called with auth header
+  deleteAvatar(token) { return this.request('/api/me/avatar', { method: 'DELETE', token }); },
   boards(token) { return this.request('/api/boards', { token }); },
   createBoard(token, data) { return this.request('/api/boards', { method: 'POST', token, body: data }); },
   getBoard(token, id) { return this.request(`/api/boards/${id}`, { token }); },
@@ -180,6 +185,197 @@ function resetCustomization() {
   showToast('Personalización restablecida', 'info');
 }
 
+// User Profile Functions
+function showProfilePanel() {
+  const panel = document.getElementById('profile-panel');
+  panel.classList.add('show');
+  
+  // Load current user data
+  loadProfilePanel();
+}
+
+function hideProfilePanel() {
+  const panel = document.getElementById('profile-panel');
+  panel.classList.remove('show');
+}
+
+function loadProfilePanel() {
+  const user = state.user;
+  
+  // Load profile data
+  document.getElementById('profile-name').value = user.name || '';
+  document.getElementById('profile-email').value = user.email || '';
+  
+  // Load avatar
+  updateAvatarDisplay();
+}
+
+function updateAvatarDisplay() {
+  const avatarImg = document.getElementById('current-avatar');
+  const avatarPlaceholder = document.getElementById('avatar-placeholder');
+  
+  if (state.user && state.user.hasAvatar) {
+    avatarImg.src = API.getAvatarUrl(state.user.id);
+    avatarImg.style.display = 'block';
+    avatarPlaceholder.style.display = 'none';
+  } else {
+    avatarImg.style.display = 'none';
+    avatarPlaceholder.style.display = 'flex';
+    avatarPlaceholder.textContent = state.user ? state.user.name.charAt(0).toUpperCase() : '?';
+  }
+}
+
+async function updateProfile() {
+  try {
+    const name = document.getElementById('profile-name').value.trim();
+    const email = document.getElementById('profile-email').value.trim();
+    
+    if (!name || !email) {
+      showToast('Nombre y email son requeridos', 'error');
+      return;
+    }
+    
+    const updatedUser = await API.updateProfile(state.token, { name, email });
+    state.user = updatedUser;
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    
+    // Update UI
+    renderTopActions();
+    showToast('Perfil actualizado correctamente', 'success');
+  } catch (err) {
+    showToast('Error al actualizar perfil: ' + err.message, 'error');
+  }
+}
+
+async function changePassword() {
+  try {
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      showToast('Todos los campos de contraseña son requeridos', 'error');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      showToast('Las contraseñas nuevas no coinciden', 'error');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      showToast('La nueva contraseña debe tener al menos 6 caracteres', 'error');
+      return;
+    }
+    
+    await API.changePassword(state.token, { currentPassword, newPassword });
+    
+    // Clear form
+    document.getElementById('current-password').value = '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+    
+    showToast('Contraseña cambiada correctamente', 'success');
+  } catch (err) {
+    showToast('Error al cambiar contraseña: ' + err.message, 'error');
+  }
+}
+
+function handleAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    showToast('Por favor selecciona un archivo de imagen válido', 'error');
+    return;
+  }
+  
+  // Validate file size (max 2MB)
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('La imagen es demasiado grande (máximo 2MB)', 'error');
+    return;
+  }
+  
+  // Read file as base64
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      await API.uploadAvatar(state.token, e.target.result);
+      
+      // Update user state
+      state.user.hasAvatar = true;
+      localStorage.setItem('user', JSON.stringify(state.user));
+      
+      // Update UI
+      updateAvatarDisplay();
+      renderTopActions();
+      
+      showToast('Avatar actualizado correctamente', 'success');
+    } catch (err) {
+      showToast('Error al subir avatar: ' + err.message, 'error');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function deleteAvatar() {
+  if (!confirm('¿Estás seguro de que quieres eliminar tu avatar?')) return;
+  
+  try {
+    await API.deleteAvatar(state.token);
+    
+    // Update user state
+    state.user.hasAvatar = false;
+    localStorage.setItem('user', JSON.stringify(state.user));
+    
+    // Update UI
+    updateAvatarDisplay();
+    renderTopActions();
+    
+    showToast('Avatar eliminado correctamente', 'success');
+  } catch (err) {
+    showToast('Error al eliminar avatar: ' + err.message, 'error');
+  }
+}
+
+function setupProfilePanel() {
+  // Profile button
+  const profileBtn = document.getElementById('profile-btn');
+  if (profileBtn) {
+    profileBtn.addEventListener('click', showProfilePanel);
+  }
+
+  // Profile form
+  document.getElementById('update-profile-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await updateProfile();
+  });
+
+  // Password form
+  document.getElementById('change-password-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await changePassword();
+  });
+
+  // Avatar upload
+  document.getElementById('avatar-upload').addEventListener('change', handleAvatarUpload);
+  document.getElementById('delete-avatar').addEventListener('click', deleteAvatar);
+
+  // Close panel
+  document.getElementById('close-profile').addEventListener('click', hideProfilePanel);
+
+  // Close panel when clicking outside
+  document.addEventListener('click', (e) => {
+    const panel = document.getElementById('profile-panel');
+    const profileBtn = document.getElementById('profile-btn');
+    
+    if (!panel.contains(e.target) && e.target !== profileBtn && !profileBtn.contains(e.target)) {
+      hideProfilePanel();
+    }
+  });
+}
+
 function setupCustomizationPanel() {
   // Botón para mostrar el panel
   const customizeBtn = document.getElementById('customize-btn');
@@ -290,6 +486,7 @@ function renderTopActions() {
   // Guardar los botones antes de limpiar
   const customizeBtn = document.getElementById('customize-btn');
   const themeBtn = document.getElementById('theme-toggle');
+  const profileBtn = document.getElementById('profile-btn');
   container.innerHTML = '';
 
   // Volver a agregar los botones
@@ -299,20 +496,43 @@ function renderTopActions() {
   if (themeBtn) {
     container.appendChild(themeBtn);
   }
+  if (profileBtn) {
+    container.appendChild(profileBtn);
+  }
 
   if (state.user) {
-    const span = document.createElement('span');
-    span.textContent = state.user.name;
-    const btn = document.createElement('button');
-    btn.textContent = 'Salir';
-    btn.onclick = async () => {
+    // User info with avatar
+    const userContainer = document.createElement('div');
+    userContainer.className = 'user-info';
+    
+    const avatarContainer = document.createElement('div');
+    avatarContainer.className = 'user-avatar';
+    
+    if (state.user.hasAvatar) {
+      const avatarImg = document.createElement('img');
+      avatarImg.src = API.getAvatarUrl(state.user.id);
+      avatarImg.alt = 'Avatar';
+      avatarContainer.appendChild(avatarImg);
+    } else {
+      avatarContainer.textContent = state.user.name.charAt(0).toUpperCase();
+    }
+    
+    const userName = document.createElement('span');
+    userName.textContent = state.user.name;
+    
+    const logoutBtn = document.createElement('button');
+    logoutBtn.textContent = 'Salir';
+    logoutBtn.onclick = async () => {
       try { await API.logout(state.token); } catch (e) { /* ignore */ }
       clearAuth();
       state.currentBoard = null;
       showView('auth-view');
     };
-    container.appendChild(span);
-    container.appendChild(btn);
+    
+    userContainer.appendChild(avatarContainer);
+    userContainer.appendChild(userName);
+    container.appendChild(userContainer);
+    container.appendChild(logoutBtn);
   }
 }
 
@@ -715,6 +935,9 @@ async function boot() {
 
   // Configurar panel de personalización
   setupCustomizationPanel();
+
+  // Configurar panel de perfil
+  setupProfilePanel();
 
   renderTopActions();
   setupAuthForms();

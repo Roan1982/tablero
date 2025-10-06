@@ -28,6 +28,7 @@ db.serialize(() => {
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     passwordHash TEXT NOT NULL,
+    avatar BLOB,
     createdAt TEXT NOT NULL
   )`);
 
@@ -75,6 +76,13 @@ db.serialize(() => {
     FOREIGN KEY (cardId) REFERENCES cards (id),
     FOREIGN KEY (userId) REFERENCES users (id)
   )`);
+
+  // Migration: Add avatar column if it doesn't exist
+  db.run(`ALTER TABLE users ADD COLUMN avatar BLOB`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding avatar column:', err.message);
+    }
+  });
 });
 
 // Middleware
@@ -122,8 +130,20 @@ async function getUserById(id) {
 }
 
 async function createUser(user) {
-  await dbRun('INSERT INTO users (id, name, email, passwordHash, createdAt) VALUES (?, ?, ?, ?, ?)', 
-    [user.id, user.name, user.email, user.passwordHash, user.createdAt]);
+  await dbRun('INSERT INTO users (id, name, email, passwordHash, avatar, createdAt) VALUES (?, ?, ?, ?, ?, ?)', 
+    [user.id, user.name, user.email, user.passwordHash, user.avatar || null, user.createdAt]);
+}
+
+async function updateUser(userId, updates) {
+  const fields = [];
+  const values = [];
+  if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
+  if (updates.email !== undefined) { fields.push('email = ?'); values.push(updates.email); }
+  if (updates.passwordHash !== undefined) { fields.push('passwordHash = ?'); values.push(updates.passwordHash); }
+  if (updates.avatar !== undefined) { fields.push('avatar = ?'); values.push(updates.avatar); }
+  if (fields.length === 0) return;
+  values.push(userId);
+  await dbRun(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
 }
 
 async function getBoardsForUser(userId) {
@@ -316,7 +336,7 @@ app.post('/api/auth/register', async (req, res) => {
     await createUser(user);
 
     const token = createToken(user);
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, hasAvatar: !!user.avatar } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -337,7 +357,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (!match) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = createToken(user);
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, hasAvatar: !!user.avatar } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -353,7 +373,129 @@ app.get('/api/me', authMiddleware, async (req, res) => {
   try {
     const me = await getUserById(req.userId);
     if (!me) return res.status(404).json({ error: 'User not found' });
-    res.json({ id: me.id, name: me.name, email: me.email });
+    res.json({ 
+      id: me.id, 
+      name: me.name, 
+      email: me.email,
+      hasAvatar: !!me.avatar
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// User profile endpoints
+app.put('/api/me', authMiddleware, async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (email !== undefined) updates.email = email.toLowerCase();
+    
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    // Check if email is already taken by another user
+    if (updates.email) {
+      const existing = await getUserByEmail(updates.email);
+      if (existing && existing.id !== req.userId) {
+        return res.status(409).json({ error: 'Email already in use' });
+      }
+    }
+
+    await updateUser(req.userId, updates);
+    
+    // Get updated user
+    const updatedUser = await getUserById(req.userId);
+    res.json({ 
+      id: updatedUser.id, 
+      name: updatedUser.name, 
+      email: updatedUser.email,
+      hasAvatar: !!updatedUser.avatar
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.put('/api/me/password', authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    const user = await getUserById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Verify current password
+    const match = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!match) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    await updateUser(req.userId, { passwordHash: newPasswordHash });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/me/avatar', authMiddleware, async (req, res) => {
+  try {
+    const avatarBuffer = req.body; // This will be handled by multer in production
+    
+    // For now, we'll handle base64 encoded images
+    if (!avatarBuffer || typeof avatarBuffer !== 'string') {
+      return res.status(400).json({ error: 'Avatar data is required' });
+    }
+
+    // Convert base64 to buffer
+    const base64Data = avatarBuffer.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Validate file size (max 2MB)
+    if (buffer.length > 2 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Avatar file too large (max 2MB)' });
+    }
+
+    await updateUser(req.userId, { avatar: buffer });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/me/avatar', authMiddleware, async (req, res) => {
+  try {
+    const user = await getUserById(req.userId);
+    if (!user || !user.avatar) {
+      return res.status(404).json({ error: 'Avatar not found' });
+    }
+
+    // Detect mime type from buffer
+    const mimeType = 'image/jpeg'; // Default, could be improved with detection
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+    res.send(user.avatar);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.delete('/api/me/avatar', authMiddleware, async (req, res) => {
+  try {
+    await updateUser(req.userId, { avatar: null });
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

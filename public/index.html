@@ -12,6 +12,7 @@
     <div class="actions" id="top-actions">
       <button id="customize-btn" title="Personalizar tablero">🎨</button>
       <button id="theme-toggle" title="Cambiar tema">🌙</button>
+      <button id="profile-btn" title="Mi perfil">👤</button>
     </div>
   </header>
 
@@ -74,6 +75,63 @@
       <button class="save-btn" id="save-customization">Guardar</button>
       <button class="reset-btn" id="reset-customization">Restablecer</button>
       <button class="cancel-btn" id="cancel-customization">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Profile Panel -->
+  <div class="profile-panel" id="profile-panel">
+    <div class="profile-header">
+      <h3>Mi Perfil</h3>
+      <button class="close-btn" id="close-profile">×</button>
+    </div>
+    
+    <div class="profile-content">
+      <!-- Avatar Section -->
+      <div class="profile-section">
+        <h4>Avatar</h4>
+        <div class="avatar-section">
+          <div class="current-avatar-container">
+            <div id="avatar-placeholder" class="avatar-placeholder">?</div>
+            <img id="current-avatar" class="current-avatar" style="display: none;" alt="Avatar actual">
+          </div>
+          <div class="avatar-actions">
+            <label for="avatar-upload" class="upload-btn">Cambiar Avatar</label>
+            <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+            <button class="delete-btn" id="delete-avatar">Eliminar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile Information -->
+      <div class="profile-section">
+        <h4>Información Personal</h4>
+        <form id="update-profile-form" class="profile-form">
+          <label>Nombre
+            <input type="text" id="profile-name" required>
+          </label>
+          <label>Email
+            <input type="email" id="profile-email" required>
+          </label>
+          <button type="submit" class="save-btn">Actualizar Perfil</button>
+        </form>
+      </div>
+
+      <!-- Change Password -->
+      <div class="profile-section">
+        <h4>Cambiar Contraseña</h4>
+        <form id="change-password-form" class="profile-form">
+          <label>Contraseña Actual
+            <input type="password" id="current-password" required>
+          </label>
+          <label>Nueva Contraseña
+            <input type="password" id="new-password" required minlength="6">
+          </label>
+          <label>Confirmar Nueva Contraseña
+            <input type="password" id="confirm-password" required minlength="6">
+          </label>
+          <button type="submit" class="save-btn">Cambiar Contraseña</button>
+        </form>
+      </div>
     </div>
   </div>
 
