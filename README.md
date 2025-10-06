@@ -11,8 +11,37 @@ Una aplicación web de gestión de proyectos similar a Trello, construida con No
 - ✅ Interfaz drag & drop
 - ✅ Asignación de usuarios a tarjetas
 - ✅ Estados de tarjetas (To Do, In Progress, Done)
+- ✅ **Personalización completa del tablero**
+  - Fondos personalizables (colores, gradientes, patrones)
+  - Colores personalizados para listas
+  - Selector de colores integrado
+  - Persistencia automática de configuraciones
+  - Interfaz responsiva para móviles
 
-## Tecnologías
+## Personalización del Tablero
+
+La aplicación incluye un sistema completo de personalización que permite a los usuarios adaptar la apariencia de sus tableros según sus preferencias.
+
+### Cómo usar la personalización
+
+1. **Acceder al panel**: Haz clic en el botón 🎨 "Personalizar tablero" en la barra superior
+2. **Seleccionar tipo de fondo**:
+   - **Color**: Fondo sólido con un color personalizado
+   - **Gradiente**: Transición suave entre dos colores
+   - **Patrón**: Fondos con texturas o diseños
+   - **Imagen**: (Próximamente) Fondos con imágenes personalizadas
+3. **Elegir colores**:
+   - Usa los colores predefinidos haciendo clic en las opciones
+   - O selecciona colores personalizados con el selector de color
+4. **Personalizar listas**: Cambia el color de las listas para organizar mejor tus proyectos
+5. **Guardar cambios**: Los cambios se aplican inmediatamente y se guardan automáticamente
+
+### Características técnicas
+
+- **Persistencia**: Todas las configuraciones se guardan automáticamente en el navegador
+- **Responsive**: El panel de personalización funciona perfectamente en dispositivos móviles
+- **Temas**: Compatible con el sistema de temas claro/oscuro existente
+- **Performance**: Cambios aplicados con CSS custom properties para máxima eficiencia
 
 - **Backend**: Node.js + Express
 - **Base de datos**: SQLite

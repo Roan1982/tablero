@@ -10,9 +10,72 @@
   <header class="topbar">
     <div class="brand">Tablero</div>
     <div class="actions" id="top-actions">
+      <button id="customize-btn" title="Personalizar tablero">🎨</button>
       <button id="theme-toggle" title="Cambiar tema">🌙</button>
     </div>
   </header>
+
+  <!-- Background element -->
+  <div class="board-background color-bg" id="board-background"></div>
+
+  <!-- Customization Panel -->
+  <div class="customization-panel" id="customization-panel">
+    <h3>Personalizar Tablero</h3>
+    
+    <div class="customization-section">
+      <label>Fondo del Tablero</label>
+      <div class="background-picker" id="background-picker">
+        <div class="background-option selected" data-bg="color">Color</div>
+        <div class="background-option" data-bg="gradient">Gradiente</div>
+        <div class="background-option" data-bg="pattern">Patrón</div>
+        <div class="background-option" data-bg="image">Imagen</div>
+      </div>
+    </div>
+
+    <div class="customization-section" id="color-section">
+      <label>Colores del Fondo</label>
+      <div class="color-picker" id="bg-color-picker">
+        <div class="color-option" style="background: #0079bf;" data-color="#0079bf"></div>
+        <div class="color-option" style="background: #d29034;" data-color="#d29034"></div>
+        <div class="color-option" style="background: #519839;" data-color="#519839"></div>
+        <div class="color-option" style="background: #b04632;" data-color="#b04632"></div>
+        <div class="color-option" style="background: #89609e;" data-color="#89609e"></div>
+        <div class="color-option" style="background: #cd5a91;" data-color="#cd5a91"></div>
+        <div class="color-option" style="background: #4bbf6b;" data-color="#4bbf6b"></div>
+        <div class="color-option" style="background: #00aecc;" data-color="#00aecc"></div>
+        <div class="color-option" style="background: #838c91;" data-color="#838c91"></div>
+        <div class="color-option" style="background: #2d3748;" data-color="#2d3748"></div>
+        <div class="color-option" style="background: #667eea;" data-color="#667eea"></div>
+        <div class="color-option" style="background: #764ba2;" data-color="#764ba2"></div>
+      </div>
+      <input type="color" class="custom-color-input" id="custom-bg-color" value="#0079bf">
+    </div>
+
+    <div class="customization-section">
+      <label>Color de Listas</label>
+      <div class="color-picker" id="list-color-picker">
+        <div class="color-option selected" style="background: #0079bf;" data-color="#0079bf"></div>
+        <div class="color-option" style="background: #d29034;" data-color="#d29034"></div>
+        <div class="color-option" style="background: #519839;" data-color="#519839"></div>
+        <div class="color-option" style="background: #b04632;" data-color="#b04632"></div>
+        <div class="color-option" style="background: #89609e;" data-color="#89609e"></div>
+        <div class="color-option" style="background: #cd5a91;" data-color="#cd5a91"></div>
+        <div class="color-option" style="background: #4bbf6b;" data-color="#4bbf6b"></div>
+        <div class="color-option" style="background: #00aecc;" data-color="#00aecc"></div>
+        <div class="color-option" style="background: #838c91;" data-color="#838c91"></div>
+        <div class="color-option" style="background: #2d3748;" data-color="#2d3748"></div>
+        <div class="color-option" style="background: #667eea;" data-color="#667eea"></div>
+        <div class="color-option" style="background: #764ba2;" data-color="#764ba2"></div>
+      </div>
+      <input type="color" class="custom-color-input" id="custom-list-color" value="#0079bf">
+    </div>
+
+    <div class="customization-actions">
+      <button class="save-btn" id="save-customization">Guardar</button>
+      <button class="reset-btn" id="reset-customization">Restablecer</button>
+      <button class="cancel-btn" id="cancel-customization">Cancelar</button>
+    </div>
+  </div>
 
   <main id="app">
     <section id="auth-view" class="view">

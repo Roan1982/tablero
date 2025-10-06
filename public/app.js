@@ -44,6 +44,12 @@ const state = {
   currentBoard: null,
   members: [],
   theme: localStorage.getItem('theme') || 'light',
+  boardCustomization: JSON.parse(localStorage.getItem('boardCustomization') || JSON.stringify({
+    backgroundType: 'color',
+    backgroundColor: '#0079bf',
+    backgroundColorSecondary: '#026aa7',
+    listColor: '#0079bf'
+  }))
 };
 
 function setAuth(token, user) {
@@ -77,6 +83,159 @@ function applyTheme() {
 function toggleTheme() {
   state.theme = state.theme === 'light' ? 'dark' : 'light';
   applyTheme();
+}
+
+// Board Customization Functions
+function applyBoardCustomization() {
+  const bg = document.getElementById('board-background');
+  const customization = state.boardCustomization;
+  
+  // Remove all background classes
+  bg.className = 'board-background';
+  
+  // Apply background type
+  bg.classList.add(`${customization.backgroundType}-bg`);
+  
+  // Apply custom colors
+  bg.style.setProperty('--board-bg-primary', customization.backgroundColor);
+  bg.style.setProperty('--board-bg-secondary', customization.backgroundColorSecondary || customization.backgroundColor);
+  
+  // Apply list colors
+  document.documentElement.style.setProperty('--list-color', customization.listColor);
+  
+  // Save to localStorage
+  localStorage.setItem('boardCustomization', JSON.stringify(customization));
+}
+
+function showCustomizationPanel() {
+  const panel = document.getElementById('customization-panel');
+  panel.classList.add('show');
+  
+  // Load current customization
+  loadCustomizationPanel();
+}
+
+function hideCustomizationPanel() {
+  const panel = document.getElementById('customization-panel');
+  panel.classList.remove('show');
+}
+
+function loadCustomizationPanel() {
+  const customization = state.boardCustomization;
+  
+  // Set background type
+  document.querySelectorAll('.background-option').forEach(option => {
+    option.classList.toggle('selected', option.dataset.bg === customization.backgroundType);
+  });
+  
+  // Set colors
+  document.getElementById('custom-bg-color').value = customization.backgroundColor;
+  document.getElementById('custom-list-color').value = customization.listColor;
+  
+  // Update color picker selections
+  updateColorSelections();
+}
+
+function updateColorSelections() {
+  const customization = state.boardCustomization;
+  
+  // Background color selections
+  document.querySelectorAll('#bg-color-picker .color-option').forEach(option => {
+    option.classList.toggle('selected', option.dataset.color === customization.backgroundColor);
+  });
+  
+  // List color selections
+  document.querySelectorAll('#list-color-picker .color-option').forEach(option => {
+    option.classList.toggle('selected', option.dataset.color === customization.listColor);
+  });
+}
+
+function saveCustomization() {
+  const customization = state.boardCustomization;
+  
+  // Get values from inputs
+  customization.backgroundColor = document.getElementById('custom-bg-color').value;
+  customization.listColor = document.getElementById('custom-list-color').value;
+  
+  // Apply changes
+  applyBoardCustomization();
+  
+  // Show success message
+  showToast('Personalización guardada correctamente', 'success');
+  
+  // Hide panel
+  hideCustomizationPanel();
+}
+
+function resetCustomization() {
+  state.boardCustomization = {
+    backgroundType: 'color',
+    backgroundColor: '#0079bf',
+    backgroundColorSecondary: '#026aa7',
+    listColor: '#0079bf'
+  };
+  
+  applyBoardCustomization();
+  loadCustomizationPanel();
+  showToast('Personalización restablecida', 'info');
+}
+
+function setupCustomizationPanel() {
+  // Botón para mostrar el panel
+  const customizeBtn = document.getElementById('customize-btn');
+  if (customizeBtn) {
+    customizeBtn.addEventListener('click', showCustomizationPanel);
+  }
+
+  // Background type selection
+  document.querySelectorAll('.background-option').forEach(option => {
+    option.addEventListener('click', () => {
+      document.querySelectorAll('.background-option').forEach(opt => opt.classList.remove('selected'));
+      option.classList.add('selected');
+      state.boardCustomization.backgroundType = option.dataset.bg;
+    });
+  });
+
+  // Color picker selections
+  document.querySelectorAll('#bg-color-picker .color-option').forEach(option => {
+    option.addEventListener('click', () => {
+      state.boardCustomization.backgroundColor = option.dataset.color;
+      document.getElementById('custom-bg-color').value = option.dataset.color;
+      updateColorSelections();
+    });
+  });
+
+  document.querySelectorAll('#list-color-picker .color-option').forEach(option => {
+    option.addEventListener('click', () => {
+      state.boardCustomization.listColor = option.dataset.color;
+      document.getElementById('custom-list-color').value = option.dataset.color;
+      updateColorSelections();
+    });
+  });
+
+  // Custom color inputs
+  document.getElementById('custom-bg-color').addEventListener('input', (e) => {
+    state.boardCustomization.backgroundColor = e.target.value;
+  });
+
+  document.getElementById('custom-list-color').addEventListener('input', (e) => {
+    state.boardCustomization.listColor = e.target.value;
+  });
+
+  // Action buttons
+  document.getElementById('save-customization').addEventListener('click', saveCustomization);
+  document.getElementById('reset-customization').addEventListener('click', resetCustomization);
+  document.getElementById('cancel-customization').addEventListener('click', hideCustomizationPanel);
+
+  // Close panel when clicking outside
+  document.addEventListener('click', (e) => {
+    const panel = document.getElementById('customization-panel');
+    const customizeBtn = document.getElementById('customize-btn');
+    
+    if (!panel.contains(e.target) && e.target !== customizeBtn && !customizeBtn.contains(e.target)) {
+      hideCustomizationPanel();
+    }
+  });
 }
 
 // Toast notification system
@@ -128,11 +287,15 @@ function showView(id) {
 
 function renderTopActions() {
   const container = document.getElementById('top-actions');
-  // Guardar el botón de tema antes de limpiar
+  // Guardar los botones antes de limpiar
+  const customizeBtn = document.getElementById('customize-btn');
   const themeBtn = document.getElementById('theme-toggle');
   container.innerHTML = '';
 
-  // Volver a agregar el botón de tema
+  // Volver a agregar los botones
+  if (customizeBtn) {
+    container.appendChild(customizeBtn);
+  }
   if (themeBtn) {
     container.appendChild(themeBtn);
   }
@@ -286,6 +449,9 @@ function renderBoard() {
     const titleInput = node.querySelector('.list-title');
     const cardsContainer = node.querySelector('.cards');
     const delBtn = node.querySelector('.delete-list');
+
+    // Apply custom color class
+    listEl.classList.add('color-custom');
 
     titleInput.value = list.title;
     titleInput.addEventListener('change', async () => {
@@ -538,11 +704,17 @@ async function boot() {
   // Aplicar tema guardado
   applyTheme();
   
+  // Aplicar personalización del tablero
+  applyBoardCustomization();
+  
   // Configurar toggle del tema
   const themeBtn = document.getElementById('theme-toggle');
   if (themeBtn) {
     themeBtn.addEventListener('click', toggleTheme);
   }
+
+  // Configurar panel de personalización
+  setupCustomizationPanel();
 
   renderTopActions();
   setupAuthForms();
