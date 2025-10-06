@@ -43,6 +43,7 @@ const state = {
   boards: [],
   currentBoard: null,
   members: [],
+  theme: localStorage.getItem('theme') || 'light',
 };
 
 function setAuth(token, user) {
@@ -61,6 +62,65 @@ function clearAuth() {
   renderTopActions();
 }
 
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', state.theme);
+  localStorage.setItem('theme', state.theme);
+  
+  // Actualizar ícono del botón
+  const themeBtn = document.getElementById('theme-toggle');
+  if (themeBtn) {
+    themeBtn.textContent = state.theme === 'light' ? '🌙' : '☀️';
+    themeBtn.title = state.theme === 'light' ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro';
+  }
+}
+
+function toggleTheme() {
+  state.theme = state.theme === 'light' ? 'dark' : 'light';
+  applyTheme();
+}
+
+// Toast notification system
+function showToast(message, type = 'info', duration = 5000) {
+  const container = document.getElementById('toast-container');
+  const template = document.getElementById('toast-template');
+  const toast = template.content.cloneNode(true);
+  const toastEl = toast.querySelector('.toast');
+  const messageEl = toast.querySelector('.toast-message');
+  const closeBtn = toast.querySelector('.toast-close');
+  
+  messageEl.textContent = message;
+  toastEl.classList.add(type);
+  
+  // Auto-remove after duration
+  const timeoutId = setTimeout(() => {
+    removeToast(toastEl);
+  }, duration);
+  
+  // Close button
+  closeBtn.addEventListener('click', () => {
+    clearTimeout(timeoutId);
+    removeToast(toastEl);
+  });
+  
+  container.appendChild(toast);
+  
+  // Auto-remove after animation
+  setTimeout(() => {
+    if (toastEl.parentNode) {
+      removeToast(toastEl);
+    }
+  }, duration + 300);
+}
+
+function removeToast(toastEl) {
+  toastEl.classList.add('fade-out');
+  setTimeout(() => {
+    if (toastEl.parentNode) {
+      toastEl.parentNode.removeChild(toastEl);
+    }
+  }, 300);
+}
+
 function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
@@ -68,7 +128,15 @@ function showView(id) {
 
 function renderTopActions() {
   const container = document.getElementById('top-actions');
+  // Guardar el botón de tema antes de limpiar
+  const themeBtn = document.getElementById('theme-toggle');
   container.innerHTML = '';
+
+  // Volver a agregar el botón de tema
+  if (themeBtn) {
+    container.appendChild(themeBtn);
+  }
+
   if (state.user) {
     const span = document.createElement('span');
     span.textContent = state.user.name;
@@ -182,7 +250,7 @@ function setupBoardView() {
       renderBoard();
       e.target.reset();
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, 'error');
     }
   });
 
@@ -223,7 +291,7 @@ function renderBoard() {
     titleInput.addEventListener('change', async () => {
       try {
         await API.updateList(state.token, state.currentBoard.id, list.id, { title: titleInput.value });
-      } catch (err) { alert(err.message); }
+      } catch (err) { showToast('Error al actualizar el título de la lista: ' + err.message, 'error'); }
     });
 
     delBtn.addEventListener('click', async () => {
@@ -232,7 +300,7 @@ function renderBoard() {
         await API.deleteList(state.token, state.currentBoard.id, list.id);
         state.currentBoard.lists = state.currentBoard.lists.filter(l => l.id !== list.id);
         renderBoard();
-      } catch (err) { alert(err.message); }
+      } catch (err) { showToast('Error al eliminar la lista: ' + err.message, 'error'); }
     });
 
     cardsContainer.dataset.listId = list.id;
@@ -300,7 +368,7 @@ function renderBoard() {
           cardEl.classList.remove('status-todo', 'status-in-progress', 'status-done');
           cardEl.classList.add(`status-${card.status}`);
           statusEl.textContent = { 'todo': 'To Do', 'in-progress': 'In Progress', 'done': 'Done' }[card.status];
-        }).catch(err => alert(err.message));
+        }).catch(err => showToast('Error al cambiar el estado: ' + err.message, 'error'));
       };
 
       assigneesEl.innerHTML = '<span class="assign-icon">+</span>';
@@ -343,7 +411,7 @@ function renderBoard() {
                 assigneesEl.appendChild(span);
               }
             });
-          } catch (err) { alert(err.message); }
+          } catch (err) { showToast('Error al asignar usuario: ' + err.message, 'error'); }
         };
         item.appendChild(checkbox);
         item.appendChild(document.createTextNode(' ' + member.name));
@@ -363,7 +431,7 @@ function renderBoard() {
             title: titleEl.textContent,
             description: descEl.value,
           });
-        } catch (err) { alert(err.message); }
+        } catch (err) { showToast('Error al guardar la tarjeta: ' + err.message, 'error'); }
       });
 
       delBtn.addEventListener('click', async () => {
@@ -372,7 +440,7 @@ function renderBoard() {
           await API.deleteCard(state.token, state.currentBoard.id, list.id, card.id);
           list.cards = list.cards.filter(c => c.id !== card.id);
           renderBoard();
-        } catch (err) { alert(err.message); }
+        } catch (err) { showToast('Error al eliminar la tarjeta: ' + err.message, 'error'); }
       });
 
       cardsContainer.appendChild(cnode);
@@ -449,7 +517,7 @@ function enableDrop(container) {
       const fresh = await API.getBoard(state.token, state.currentBoard.id);
       state.currentBoard = fresh;
       renderBoard();
-    } catch (err) { alert(err.message); }
+    } catch (err) { showToast('Error al mover la tarjeta: ' + err.message, 'error'); }
   });
 }
 
@@ -467,6 +535,15 @@ function getDragAfterElement(container, y) {
 }
 
 async function boot() {
+  // Aplicar tema guardado
+  applyTheme();
+  
+  // Configurar toggle del tema
+  const themeBtn = document.getElementById('theme-toggle');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', toggleTheme);
+  }
+
   renderTopActions();
   setupAuthForms();
   setupBoardsView();

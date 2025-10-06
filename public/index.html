@@ -9,7 +9,9 @@
 <body>
   <header class="topbar">
     <div class="brand">Tablero</div>
-    <div class="actions" id="top-actions"></div>
+    <div class="actions" id="top-actions">
+      <button id="theme-toggle" title="Cambiar tema">🌙</button>
+    </div>
   </header>
 
   <main id="app">
@@ -78,6 +80,16 @@
       </div>
     </section>
   </main>
+
+  <!-- Toast notifications -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <template id="toast-template">
+    <div class="toast">
+      <span class="toast-message"></span>
+      <button class="toast-close">×</button>
+    </div>
+  </template>
 
   <template id="list-template">
     <div class="list" draggable="false">
