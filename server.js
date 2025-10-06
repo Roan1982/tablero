@@ -361,7 +361,7 @@ app.post('/api/boards/:boardId/lists/:listId/cards', authMiddleware, async (req,
     const list = board.lists.find(l => l.id === req.params.listId);
     if (!list) return res.status(404).json({ error: 'List not found' });
     const position = list.cards.length;
-    const card = { id: uuidv4(), title, description, position, createdAt: new Date().toISOString(), creatorId: req.userId, assignees: [] };
+    const card = { id: uuidv4(), title, description, position, createdAt: new Date().toISOString(), creatorId: req.userId, assignees: [], status: 'todo' };
     list.cards.push(card);
     await saveBoards(boards);
     res.status(201).json(card);
@@ -373,7 +373,7 @@ app.post('/api/boards/:boardId/lists/:listId/cards', authMiddleware, async (req,
 
 app.put('/api/boards/:boardId/lists/:listId/cards/:cardId', authMiddleware, async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, status } = req.body;
     const boards = await loadBoards();
     const board = boards.find(b => b.id === req.params.boardId);
     if (!board) return res.status(404).json({ error: 'Board not found' });
@@ -384,6 +384,7 @@ app.put('/api/boards/:boardId/lists/:listId/cards/:cardId', authMiddleware, asyn
     if (!card) return res.status(404).json({ error: 'Card not found' });
     if (typeof title === 'string') card.title = title;
     if (typeof description === 'string') card.description = description;
+    if (['todo', 'in-progress', 'done'].includes(status)) card.status = status;
     await saveBoards(boards);
     res.json(card);
   } catch (err) {

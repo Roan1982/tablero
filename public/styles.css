@@ -38,9 +38,12 @@ button[type="submit"] { margin-top: 8px; padding: 8px 12px; border: none; backgr
 .list-title:hover, .list-title:focus { background: #fff; outline: 1px solid #cfd3dc; }
 .delete-list { border: none; background: transparent; cursor: pointer; font-size: 18px; }
 .cards { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; min-height: 10px; }
-.card { background: white; border-radius: 8px; padding: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid transparent; overflow: visible; }
+.card.status-todo { border-left: 4px solid #ff6b6b; }
+.card.status-in-progress { border-left: 4px solid #ffd93d; }
+.card.status-done { border-left: 4px solid #6bcf7f; }
+.card-status { font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 4px; cursor: pointer; background: #f0f0f0; margin-right: 4px; }
 .card.dragging { opacity: 0.5; }
-.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; position: relative; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; position: relative; flex-wrap: wrap; }
 .card-creator { font-size: 12px; background: #026aa7; color: white; padding: 2px 6px; border-radius: 12px; font-weight: 600; }
 .card-assignees { display: flex; gap: 4px; cursor: pointer; align-items: center; }
 .assign-icon { font-size: 14px; background: #ddd; color: #666; padding: 2px 6px; border-radius: 12px; font-weight: 600; }

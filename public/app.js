@@ -232,6 +232,7 @@ function renderBoard() {
       const cnode = cardTpl.content.cloneNode(true);
       const cardEl = cnode.querySelector('.card');
       const creatorEl = cnode.querySelector('.card-creator');
+      const statusEl = cnode.querySelector('.card-status');
       const assigneesEl = cnode.querySelector('.card-assignees');
       const titleEl = cnode.querySelector('.card-title');
       const descEl = cnode.querySelector('.card-desc');
@@ -239,6 +240,7 @@ function renderBoard() {
       const delBtn = cnode.querySelector('.delete-card');
 
       cardEl.dataset.cardId = card.id;
+      cardEl.classList.add(`status-${card.status || 'todo'}`);
       titleEl.textContent = card.title;
       descEl.value = card.description || '';
 
@@ -246,6 +248,17 @@ function renderBoard() {
       if (creator) {
         creatorEl.textContent = creator.name.split(' ').map(n => n[0]).join('').toUpperCase();
       }
+
+      statusEl.textContent = { 'todo': 'To Do', 'in-progress': 'In Progress', 'done': 'Done' }[card.status || 'todo'];
+      statusEl.onclick = () => {
+        const nextStatus = { 'todo': 'in-progress', 'in-progress': 'done', 'done': 'todo' }[card.status || 'todo'];
+        API.updateCard(state.token, state.currentBoard.id, list.id, card.id, { status: nextStatus }).then(updated => {
+          card.status = updated.status;
+          cardEl.classList.remove('status-todo', 'status-in-progress', 'status-done');
+          cardEl.classList.add(`status-${card.status}`);
+          statusEl.textContent = { 'todo': 'To Do', 'in-progress': 'In Progress', 'done': 'Done' }[card.status];
+        }).catch(err => alert(err.message));
+      };
 
       assigneesEl.innerHTML = '<span class="assign-icon">+</span>';
       card.assignees.forEach(aid => {
