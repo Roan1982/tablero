@@ -450,15 +450,15 @@ app.put('/api/me/password', authMiddleware, async (req, res) => {
 
 app.post('/api/me/avatar', authMiddleware, async (req, res) => {
   try {
-    const avatarBuffer = req.body; // This will be handled by multer in production
+    const avatarData = req.body.avatar; // Get avatar from request body
     
     // For now, we'll handle base64 encoded images
-    if (!avatarBuffer || typeof avatarBuffer !== 'string') {
+    if (!avatarData || typeof avatarData !== 'string') {
       return res.status(400).json({ error: 'Avatar data is required' });
     }
 
     // Convert base64 to buffer
-    const base64Data = avatarBuffer.replace(/^data:image\/\w+;base64,/, '');
+    const base64Data = avatarData.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
 
     // Validate file size (max 2MB)

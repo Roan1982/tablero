@@ -20,7 +20,7 @@ const API = {
   me(token) { return this.request('/api/me', { token }); },
   updateProfile(token, data) { return this.request('/api/me', { method: 'PUT', token, body: data }); },
   changePassword(token, data) { return this.request('/api/me/password', { method: 'PUT', token, body: data }); },
-  uploadAvatar(token, avatarData) { return this.request('/api/me/avatar', { method: 'POST', token, body: avatarData }); },
+  uploadAvatar(token, avatarData) { return this.request('/api/me/avatar', { method: 'POST', token, body: { avatar: avatarData } }); },
   getAvatarUrl(userId) { return `/api/me/avatar`; }, // This will be called with auth header
   deleteAvatar(token) { return this.request('/api/me/avatar', { method: 'DELETE', token }); },
   boards(token) { return this.request('/api/boards', { token }); },
