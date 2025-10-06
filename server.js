@@ -170,6 +170,21 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Live content update (for real-time typing)
+  socket.on('live-content-update', (data) => {
+    const { boardId, itemId, itemType, field, content } = data;
+    if (boardId && itemId && itemType && field) {
+      // Broadcast to other users in the board (not back to sender)
+      socket.to(`board-${boardId}`).emit('live-content-changed', {
+        itemId,
+        itemType,
+        field,
+        content,
+        userId: socket.id
+      });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
     

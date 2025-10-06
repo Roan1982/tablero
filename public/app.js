@@ -374,6 +374,10 @@ function initWebSocket() {
   socket.on('user-editing', (data) => {
     handleUserEditing(data);
   });
+
+  socket.on('live-content-changed', (data) => {
+    handleLiveContentChanged(data);
+  });
 }
 
 // Join/leave board rooms
@@ -413,6 +417,19 @@ function stopEditing(itemId, itemType) {
       boardId: realTimeState.currentBoardId,
       itemId,
       itemType
+    });
+  }
+}
+
+// Send live content update
+function sendLiveContentUpdate(itemId, itemType, field, content) {
+  if (socket && realTimeState.currentBoardId) {
+    socket.emit('live-content-update', {
+      boardId: realTimeState.currentBoardId,
+      itemId,
+      itemType,
+      field,
+      content
     });
   }
 }
@@ -535,6 +552,35 @@ function handleUserEditing(data) {
   
   // Update UI to show editing indicators
   updateEditingIndicators();
+}
+
+function handleLiveContentChanged(data) {
+  const { itemId, itemType, field, content, userId } = data;
+  
+  // Don't update if this is our own change (to avoid conflicts)
+  if (socket && userId === socket.id) return;
+  
+  // Find the element and update its content
+  let element;
+  if (itemType === 'card') {
+    if (field === 'title') {
+      element = document.querySelector(`.card[data-card-id="${itemId}"] .card-title`);
+    } else if (field === 'description') {
+      element = document.querySelector(`.card[data-card-id="${itemId}"] .card-desc`);
+    }
+  } else if (itemType === 'list') {
+    if (field === 'title') {
+      element = document.querySelector(`.list[data-list-id="${itemId}"] .list-title`);
+    }
+  }
+  
+  if (element) {
+    if (field === 'title') {
+      element.textContent = content;
+    } else if (field === 'description') {
+      element.value = content;
+    }
+  }
 }
 
 function updateEditingIndicators() {
@@ -1242,12 +1288,16 @@ function renderBoard() {
     // Apply custom color class
     listEl.classList.add('color-custom');
 
-    titleInput.value = list.title;
-    titleInput.addEventListener('change', async () => {
-      try {
-        await API.updateList(state.token, state.currentBoard.id, list.id, { title: titleInput.value });
-      } catch (err) { showToast('Error al actualizar el título de la lista: ' + err.message, 'error'); }
-    });
+      titleInput.value = list.title;
+      titleInput.addEventListener('input', () => {
+        // Send live update immediately
+        sendLiveContentUpdate(list.id, 'list', 'title', titleInput.value);
+      });
+      titleInput.addEventListener('change', async () => {
+        try {
+          await API.updateList(state.token, state.currentBoard.id, list.id, { title: titleInput.value });
+        } catch (err) { showToast('Error al actualizar el título de la lista: ' + err.message, 'error'); }
+      });
     
     // Start editing indicator for list title
     titleInput.addEventListener('focus', () => {
@@ -1287,20 +1337,20 @@ function renderBoard() {
       cardEl.classList.add(`status-${card.status || 'todo'}`);
       titleEl.textContent = card.title;
 
-      // Auto-save title on change
-      let titleSaveTimeout;
+      // Live update on input, save on blur
       titleEl.addEventListener('input', () => {
-        clearTimeout(titleSaveTimeout);
-        titleSaveTimeout = setTimeout(async () => {
-          try {
-            await API.updateCard(state.token, state.currentBoard.id, list.id, card.id, {
-              title: titleEl.textContent,
-            });
-            card.title = titleEl.textContent;
-          } catch (err) {
-            console.error('Error auto-saving title:', err);
-          }
-        }, 1000); // Save after 1 second of no typing
+        sendLiveContentUpdate(card.id, 'card', 'title', titleEl.textContent);
+      });
+      
+      titleEl.addEventListener('blur', async () => {
+        try {
+          await API.updateCard(state.token, state.currentBoard.id, list.id, card.id, {
+            title: titleEl.textContent,
+          });
+          card.title = titleEl.textContent;
+        } catch (err) {
+          console.error('Error saving title:', err);
+        }
       });
       
       // Start editing indicator
@@ -1314,20 +1364,20 @@ function renderBoard() {
       });
       descEl.value = card.description || '';
 
-      // Auto-save description on change
-      let saveTimeout;
+      // Live update on input, save on blur
       descEl.addEventListener('input', () => {
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(async () => {
-          try {
-            await API.updateCard(state.token, state.currentBoard.id, list.id, card.id, {
-              description: descEl.value,
-            });
-            card.description = descEl.value;
-          } catch (err) {
-            console.error('Error auto-saving description:', err);
-          }
-        }, 1000); // Save after 1 second of no typing
+        sendLiveContentUpdate(card.id, 'card', 'description', descEl.value);
+      });
+      
+      descEl.addEventListener('blur', async () => {
+        try {
+          await API.updateCard(state.token, state.currentBoard.id, list.id, card.id, {
+            description: descEl.value,
+          });
+          card.description = descEl.value;
+        } catch (err) {
+          console.error('Error saving description:', err);
+        }
       });
       
       // Start editing indicator for description
