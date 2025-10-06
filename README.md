@@ -23,6 +23,12 @@ Una aplicación web de gestión de proyectos similar a Trello, construida con No
   - Actualización de información personal
   - Visualización de avatar en la interfaz
   - Gestión completa del perfil
+- ✅ **Colaboración en tiempo real**
+  - Actualizaciones instantáneas de tarjetas y listas
+  - Indicadores visuales cuando alguien está editando
+  - Sincronización automática entre usuarios
+  - WebSockets para comunicación en tiempo real
+  - Feedback visual de actividad colaborativa
 
 ## Personalización del Tablero
 
@@ -84,7 +90,54 @@ La aplicación incluye un sistema completo de gestión de perfil de usuario que 
 - **Límite de tamaño**: Máximo 2MB por archivo
 - **Privacidad**: Los avatares son privados y solo visibles para el usuario propietario
 
-- **Backend**: Node.js + Express
+## Colaboración en Tiempo Real
+
+La aplicación incluye un sistema avanzado de colaboración en tiempo real que permite a múltiples usuarios trabajar simultáneamente en el mismo tablero sin conflictos.
+
+### Funcionalidades en tiempo real
+
+1. **Actualizaciones Instantáneas**
+   - Creación, edición y eliminación de tarjetas se refleja inmediatamente
+   - Cambios en listas aparecen al instante para todos los usuarios
+   - Movimiento de tarjetas entre listas se sincroniza automáticamente
+
+2. **Indicadores de Edición**
+   - Muestra quién está editando qué elemento
+   - Indicadores visuales con animación de pulso
+   - Feedback claro sobre actividad colaborativa
+
+3. **Sincronización Automática**
+   - No se requiere refrescar la página
+   - Los cambios se propagan automáticamente a todos los usuarios conectados
+   - Estado consistente entre todas las sesiones activas
+
+### Cómo funciona la colaboración
+
+1. **Conexión WebSocket**: Al entrar a un tablero, el usuario se conecta automáticamente
+2. **Salas de Tablero**: Cada tablero tiene su propia "sala" para optimizar el rendimiento
+3. **Eventos en Tiempo Real**: Todas las modificaciones generan eventos que se envían a otros usuarios
+4. **Actualización UI**: La interfaz se actualiza automáticamente al recibir eventos
+
+### Eventos soportados
+
+- **Tarjetas**: Creación, edición, eliminación y movimiento
+- **Listas**: Creación, edición, eliminación y reordenamiento
+- **Asignaciones**: Adición y eliminación de usuarios en tarjetas
+- **Edición**: Indicadores cuando alguien está escribiendo
+
+### Beneficios para equipos
+
+- **Productividad**: Eliminación de conflictos y necesidad de refrescar
+- **Transparencia**: Visibilidad completa de la actividad del equipo
+- **Colaboración**: Trabajo simultáneo sin interferencias
+- **Experiencia**: Interfaz fluida y moderna como aplicaciones profesionales
+
+### Tecnologías utilizadas
+
+- **Socket.IO**: Biblioteca para WebSockets en tiempo real
+- **Salas**: Optimización del rendimiento mediante segmentación
+- **Eventos**: Sistema de eventos personalizado para cada tipo de cambio
+- **UI Reactiva**: Actualizaciones automáticas de la interfaz de usuario
 - **Base de datos**: SQLite
 - **Frontend**: Vanilla JavaScript
 - **Autenticación**: JWT
@@ -158,6 +211,17 @@ tablero/
 
 **Nota**: La base de datos SQLite se almacena en un volumen nombrado de Docker (`tablero_data`) y no requiere un directorio `data` local.
 
+## Tecnologías Utilizadas
+
+- **Backend**: Node.js + Express + Socket.IO
+- **Base de datos**: SQLite con BLOB para avatares
+- **Frontend**: Vanilla JavaScript + Socket.IO Client
+- **Autenticación**: JWT (JSON Web Tokens)
+- **Tiempo Real**: WebSockets con Socket.IO
+- **Contenedor**: Docker + Docker Compose
+- **Persistencia**: Volúmenes nombrados de Docker
+- **Estilos**: CSS con variables personalizadas y temas
+
 ## API Endpoints
 
 ### Autenticación
@@ -189,6 +253,35 @@ tablero/
 - `POST /api/boards/:boardId/lists/:listId/cards` - Crear tarjeta
 - `PUT /api/boards/:boardId/lists/:listId/cards/:cardId` - Actualizar tarjeta
 - `DELETE /api/boards/:boardId/lists/:listId/cards/:cardId` - Eliminar tarjeta
+
+## Eventos WebSocket
+
+La aplicación utiliza WebSockets para comunicación en tiempo real. Los eventos se emiten automáticamente cuando ocurren cambios.
+
+### Eventos de Conexión
+- `join-board` - Unirse a la sala de un tablero
+- `leave-board` - Salir de la sala de un tablero
+
+### Eventos de Edición
+- `start-editing` - Usuario comienza a editar un elemento
+- `stop-editing` - Usuario termina de editar un elemento
+
+### Eventos de Tarjetas
+- `card-created` - Nueva tarjeta creada
+- `card-updated` - Tarjeta modificada
+- `card-deleted` - Tarjeta eliminada
+- `card-moved` - Tarjeta movida entre listas
+- `card-assignee-added` - Usuario asignado a tarjeta
+- `card-assignee-removed` - Usuario desasignado de tarjeta
+
+### Eventos de Listas
+- `list-created` - Nueva lista creada
+- `list-updated` - Lista modificada
+- `list-deleted` - Lista eliminada
+- `lists-reordered` - Listas reordenadas
+
+### Eventos Recibidos
+- `user-editing` - Otro usuario está editando un elemento
 
 ## Desarrollo
 
