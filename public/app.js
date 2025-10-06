@@ -258,6 +258,47 @@ function renderBoard() {
         }
       });
 
+      const dropdownEl = cnode.querySelector('.assignee-dropdown');
+      const listEl = cnode.querySelector('.assignee-list');
+      listEl.innerHTML = '';
+      state.members.forEach(member => {
+        const item = document.createElement('div');
+        item.className = 'assignee-item';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = card.assignees.includes(member.id);
+        checkbox.onchange = async () => {
+          try {
+            if (checkbox.checked) {
+              await API.assignCard(state.token, state.currentBoard.id, list.id, card.id, member.id);
+              card.assignees.push(member.id);
+            } else {
+              await API.unassignCard(state.token, state.currentBoard.id, list.id, card.id, member.id);
+              card.assignees = card.assignees.filter(id => id !== member.id);
+            }
+            // Re-render assignees
+            assigneesEl.innerHTML = '';
+            card.assignees.forEach(aid => {
+              const assignee = state.members.find(m => m.id === aid);
+              if (assignee) {
+                const span = document.createElement('span');
+                span.className = 'assignee-initial';
+                span.textContent = assignee.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                assigneesEl.appendChild(span);
+              }
+            });
+          } catch (err) { alert(err.message); }
+        };
+        item.appendChild(checkbox);
+        item.appendChild(document.createTextNode(' ' + member.name));
+        listEl.appendChild(item);
+      });
+
+      assigneesEl.onclick = (e) => {
+        e.stopPropagation();
+        dropdownEl.classList.toggle('hidden');
+      };
+
       enableDrag(cardEl);
 
       saveBtn.addEventListener('click', async () => {
