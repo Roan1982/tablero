@@ -247,7 +247,7 @@ function renderBoard() {
         creatorEl.textContent = creator.name.split(' ').map(n => n[0]).join('').toUpperCase();
       }
 
-      assigneesEl.innerHTML = '';
+      assigneesEl.innerHTML = '<span class="assign-icon">+</span>';
       card.assignees.forEach(aid => {
         const assignee = state.members.find(m => m.id === aid);
         if (assignee) {
@@ -277,7 +277,7 @@ function renderBoard() {
               card.assignees = card.assignees.filter(id => id !== member.id);
             }
             // Re-render assignees
-            assigneesEl.innerHTML = '';
+            assigneesEl.innerHTML = '<span class="assign-icon">+</span>';
             card.assignees.forEach(aid => {
               const assignee = state.members.find(m => m.id === aid);
               if (assignee) {
