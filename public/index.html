@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tablero - tipo Trello</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Tablero</div>
+    <div class="actions" id="top-actions"></div>
+  </header>
+
+  <main id="app">
+    <section id="auth-view" class="view">
+      <div class="auth-card">
+        <h1>Bienvenido</h1>
+        <div class="tabs">
+          <button class="tab active" data-tab="login">Iniciar sesión</button>
+          <button class="tab" data-tab="register">Registrarse</button>
+        </div>
+        <div class="tab-content">
+          <form id="login-form" class="tab-pane active">
+            <label>Email
+              <input type="email" name="email" required />
+            </label>
+            <label>Contraseña
+              <input type="password" name="password" required />
+            </label>
+            <button type="submit">Entrar</button>
+            <div class="error" id="login-error"></div>
+          </form>
+          <form id="register-form" class="tab-pane">
+            <label>Nombre
+              <input type="text" name="name" required />
+            </label>
+            <label>Email
+              <input type="email" name="email" required />
+            </label>
+            <label>Contraseña
+              <input type="password" name="password" required />
+            </label>
+            <button type="submit">Crear cuenta</button>
+            <div class="error" id="register-error"></div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section id="boards-view" class="view hidden">
+      <div class="toolbar">
+        <h2>Mis tableros</h2>
+        <form id="create-board-form">
+          <input type="text" name="name" placeholder="Nombre del tablero" required />
+          <button type="submit">Crear</button>
+        </form>
+      </div>
+      <div id="boards-list" class="boards-list"></div>
+    </section>
+
+    <section id="board-view" class="view hidden">
+      <div class="toolbar">
+        <button id="back-to-boards">← Volver</button>
+        <h2 id="board-title">Tablero</h2>
+        <div class="spacer"></div>
+        <form id="invite-form">
+          <input type="email" name="email" placeholder="Invitar por email" />
+          <button type="submit">Invitar</button>
+        </form>
+      </div>
+      <div id="lists" class="lists"></div>
+      <div class="add-list">
+        <form id="add-list-form">
+          <input type="text" name="title" placeholder="Añadir lista" required />
+          <button type="submit">Añadir lista</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <template id="list-template">
+    <div class="list" draggable="false">
+      <div class="list-header">
+        <input class="list-title" />
+        <button class="delete-list">✕</button>
+      </div>
+      <div class="cards" data-list-id></div>
+      <form class="add-card-form">
+        <input type="text" name="title" placeholder="Añadir tarjeta" required />
+        <button type="submit">Añadir</button>
+      </form>
+    </div>
+  </template>
+
+  <template id="card-template">
+    <div class="card" draggable="true">
+      <div class="card-title"></div>
+      <textarea class="card-desc" placeholder="Descripción..."></textarea>
+      <div class="card-actions">
+        <button class="save-card">Guardar</button>
+        <button class="delete-card">Eliminar</button>
+      </div>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
